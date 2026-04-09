@@ -1,4 +1,4 @@
-name: Lambda Tests
+name: GCF Tests
 
 # We are a reusable Workflow only
 on:
@@ -15,8 +15,6 @@ jobs:
     name: Tests
     runs-on: "ubuntu-latest"
     continue-on-error: false
-    strategy:
-      fail-fast: false
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -34,7 +32,7 @@ jobs:
         run: |
           box install
 
-      - name: Test Lambda
+      - name: Test GCF Starter
         run: |
           ./gradlew test --stacktrace --console=plain
 

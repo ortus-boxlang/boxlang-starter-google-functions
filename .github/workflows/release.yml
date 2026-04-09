@@ -20,9 +20,27 @@ on:
 
   # Manual dispatch
   workflow_dispatch:
+    inputs:
+      deploy_gcf:
+        description: "Deploy to Google Cloud Functions after build"
+        required: false
+        default: false
+        type: boolean
+      gcf_function_name:
+        description: "Function name to deploy (required when deploy_gcf=true)"
+        required: false
+        type: string
+      gcp_region:
+        description: "Google Cloud region"
+        required: false
+        default: "us-central1"
+        type: string
 
 env:
   SNAPSHOT: ${{ inputs.snapshot || false }}
+  DEPLOY_GCF: ${{ github.event.inputs.deploy_gcf || false }}
+  GCF_FUNCTION_NAME: ${{ github.event.inputs.gcf_function_name || '' }}
+  GCP_REGION: ${{ github.event.inputs.gcp_region || 'us-central1' }}
   JDK_VERSION: 21
   BUILD_ID: ${{ github.run_number }}
 
@@ -56,20 +74,20 @@ jobs:
           # Read name and version of the project
           PROJECT_NAME=$(grep '^rootProject.name=' settings.gradle | cut -d'=' -f2 | tr -d "'\"")
           echo "PROJECT_NAME=$PROJECT_NAME" >> $GITHUB_ENV
+          echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
 
           TMPVERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
           echo "VERSION=$TMPVERSION" >> $GITHUB_ENV
+          echo "version=$TMPVERSION" >> $GITHUB_OUTPUT
 
           # Branch Detection
           echo "Github Ref is $GITHUB_REF"
           echo "BRANCH=main" >> $GITHUB_ENV
-          echo "DEPLOY_TIER=production" >> $GITHUB_ENV
 
           # Snapshot Detection
           if [ $GITHUB_REF == 'refs/heads/development' ]
           then
             echo "BRANCH=development" >> $GITHUB_ENV
-            echo "DEPLOY_TIER=staging" >> $GITHUB_ENV
           fi
 
       - name: Update changelog [unreleased] with latest version
@@ -77,14 +95,14 @@ jobs:
         if: env.SNAPSHOT == 'false'
         with:
           changelogPath: ./changelog.md
-          tag: v${{ env.VERSION }}
+          tag: v${{ steps.current_version.outputs.version }}
 
-      - name: Build v${{ env.VERSION }}
+      - name: Build v${{ steps.current_version.outputs.version }}
         run: |
           npm install -g markdownlint-cli
           markdownlint changelog.md --fix
           box install --production
-          ./gradlew build -x test --stacktrace --console=plain
+          ./gradlew clean shadowJar buildLambdaZip -x test --stacktrace --console=plain
 
       - name: Commit Changelog [unreleased] with latest version
         uses: EndBug/add-and-commit@v9.1.4
@@ -92,16 +110,16 @@ jobs:
         with:
           author_name: Github Actions
           author_email: info@ortussolutions.com
-          message: "Finalized changelog for v${{ env.VERSION }}"
+          message: "Finalized changelog for v${{ steps.current_version.outputs.version }}"
           add: changelog.md
 
       - name: Tag Version
         uses: rickstaa/action-create-tag@v1.7.2
         if: env.SNAPSHOT == 'false'
         with:
-          tag: "v${{ env.VERSION }}"
+          tag: "v${{ steps.current_version.outputs.version }}"
           force_push_tag: true
-          message: "Latest Release v${{ env.VERSION }}"
+          message: "Latest Release v${{ steps.current_version.outputs.version }}"
 
       - name: Upload Build Artifacts
         if: success()
@@ -109,20 +127,41 @@ jobs:
         with:
           name: boxlang-build
           path: |
+            build/distributions/*.zip
+            build/distributions/*.jar
             build/reports/tests/**
             changelog.md
 
-      # - name: Update AWS Lambda Function
-      #   uses: kazimanzurrashid/aws-lambda-update-action@v2.0.3
-      #   with:
-      #     zip-file: "./build/distributions/${{ env.PROJECT_NAME }}-${{ env.VERSION }}.zip"
-      #     lambda-name: ${{ env.PROJECT_NAME }}-${{ env.DEPLOY_TIER }}
-      #   env:
-      #     AWS_REGION: ${{ secrets.AWS_REGION }}
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PUBLISHER_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_PUBLISHER_KEY }}
+      - name: Authenticate to Google Cloud
+        if: env.DEPLOY_GCF == 'true' && env.SNAPSHOT == 'false'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      # - name: Upload Distributions to S3
+      - name: Setup gcloud SDK
+        if: env.DEPLOY_GCF == 'true' && env.SNAPSHOT == 'false'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Google Cloud Functions
+        if: env.DEPLOY_GCF == 'true' && env.SNAPSHOT == 'false'
+        shell: bash
+        run: |
+          if [ -z "${GCF_FUNCTION_NAME}" ]; then
+            echo "gcf_function_name is required when deploy_gcf=true"
+            exit 1
+          fi
+
+          gcloud functions deploy "${GCF_FUNCTION_NAME}" \
+            --gen2 \
+            --runtime=java21 \
+            --region="${GCP_REGION}" \
+            --entry-point=ortus.boxlang.runtime.gcp.FunctionRunner \
+            --trigger-http \
+            --allow-unauthenticated \
+            --source="build/distributions/${PROJECT_NAME}-${VERSION}.zip"
+
+      # - name: Upload Distributions to GCS
       #   uses: jakejarvis/s3-sync-action@master
       #   with:
       #     args: --acl public-read

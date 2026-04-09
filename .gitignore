@@ -12,11 +12,3 @@ bin/**
 ### BOXLANG + Java Dependencies ###
 src/resources/libs/**
 src/resources/boxlang_modules/**
-
-### AWS Deployment Artifacts ###
-workbench/bucket-name.txt
-workbench/out.yml
-workbench/config.local.env
-
-### SAM Local Server ###
-build/sam-logs/

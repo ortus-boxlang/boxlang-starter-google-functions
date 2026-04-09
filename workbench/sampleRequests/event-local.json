@@ -1,9 +1,9 @@
 {
-	"name"      : "Ortus Solutions",
-	"action"    : "greet",
-	"timestamp" : "2024-01-01T00:00:00Z",
-	"data"      : {
-		"message" : "Hello from local runner",
-		"version" : "1.0"
-	}
+    "name": "Ortus Solutions",
+    "action": "greet",
+    "timestamp": "2024-01-01T00:00:00Z",
+    "data": {
+        "message": "Hello from local runner",
+        "version": "1.0"
+    }
 }

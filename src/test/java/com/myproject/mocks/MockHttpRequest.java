@@ -39,7 +39,7 @@ import com.google.cloud.functions.HttpRequest;
  * integration tests without requiring a live GCF environment:
  *
  * <pre>
- * 
+ *
  * MockHttpRequest req = new MockHttpRequest( "GET", "/products" )
  *     .withHeader( "Accept", "application/json" )
  *     .withQueryParam( "page", "1" )

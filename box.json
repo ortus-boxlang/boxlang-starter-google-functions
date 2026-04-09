@@ -1,18 +1,18 @@
 {
-	"name": "MyLambdaProject",
+	"name": "My Google Cloud Function",
 	"author": "You",
-	"homepage": "https://github.com/ortus-boxlang/mylambda-project",
-	"documentation": "https://github.com/ortus-boxlang/mylambda-project",
+	"homepage": "https://github.com/ortus-boxlang/my-google-cloud-function",
+	"documentation": "https://github.com/ortus-boxlang/my-google-cloud-function",
 	"repository": {
 		"type": "git",
-		"URL": "https://github.com/ortus-boxlang/mylambda-project"
+		"URL": "https://github.com/ortus-boxlang/my-google-cloud-function"
 	},
-	"bugs": "https://github.com/ortus-boxlang/mylambda-project/issues",
-	"shortDescription": "Module template for BoxLang Lambda Projects",
+	"bugs": "https://github.com/ortus-boxlang/my-google-cloud-function/issues",
+	"shortDescription": "Module template for BoxLang Google Cloud Functions",
 	"type": "projects",
 	"keywords": [
 		"boxlang",
-		"aws lambda"
+		"google cloud function"
 	],
 	"private": false,
 	"devDependencies": {

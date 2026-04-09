@@ -21,177 +21,109 @@ import static com.google.common.truth.Truth.assertThat;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import com.amazonaws.services.lambda.runtime.Context;
-import com.myproject.mocks.TestContext;
+import com.myproject.mocks.MockHttpRequest;
+import com.myproject.mocks.MockHttpResponse;
 
-import ortus.boxlang.runtime.aws.LambdaRunner;
-import ortus.boxlang.runtime.scopes.Key;
-import ortus.boxlang.runtime.types.IStruct;
+import ortus.boxlang.runtime.gcp.FunctionRunner;
 
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
 public class LambdaIntegrationTest {
 
-	private LambdaRunner	runner;
-	private Context			context;
+	private FunctionRunner runner;
 
 	@BeforeEach
 	void setUp() throws IOException {
-		Path validPath = Path.of( "src", "main", "bx", "Lambda.bx" );
-		runner	= new LambdaRunner( validPath, true );
-		context	= new TestContext();
+		Path functionPath = Path.of( "src", "main", "bx", "Lambda.bx" );
+		runner = new FunctionRunner( functionPath, true );
 	}
 
-	@DisplayName( "Test your Lambda.bx" )
+	@DisplayName( "Test default run() function" )
 	@Test
 	public void testBasicExecution() throws IOException {
-		var event = new HashMap<String, Object>();
-		// Add some mock data to the event
-		event.put( "name", "Ortus Solutions" );
-		event.put( "when", Instant.now().toString() );
+		MockHttpRequest	req	= new MockHttpRequest( "POST", "/" )
+		    .withContentType( "application/json" )
+		    .withBody( "{\"name\":\"Ortus Solutions\"}" );
+		MockHttpResponse res = new MockHttpResponse();
 
-		// EXECUTE THE LAMBDA
-		var		results	= runner.handleRequest( event, context );
-		IStruct	body	= ( IStruct ) results.get( "BODY" );
+		runner.service( req, res );
 
-		assertThat( results ).isNotNull();
-		assertThat( results.get( "STATUSCODE" ) ).isEqualTo( 200 );
-		assertThat(
-		    body.getAsString( Key.of( "data" ) )
-		)
-		    .contains( "Ortus Solutions" );
+		assertThat( res.getStatusCode() ).isEqualTo( 200 );
+		assertThat( res.getBody() ).contains( "Ortus Solutions" );
 	}
 
 	@Test
-	@DisplayName( "Test API Gateway event simulation" )
-	public void testApiGatewayEvent() {
-		var	event	= createApiGatewayEvent();
+	@DisplayName( "Test anotherLambda() via x-bx-function header" )
+	public void testAnotherFunction() throws IOException {
+		MockHttpRequest	req	= new MockHttpRequest( "GET", "/" )
+		    .withHeader( "x-bx-function", "anotherLambda" );
+		MockHttpResponse res = new MockHttpResponse();
 
-		var	results	= runner.handleRequest( event, context );
+		runner.service( req, res );
 
-		assertThat( results ).isNotNull();
-		assertThat( results.get( "STATUSCODE" ) ).isEqualTo( 200 );
-
-		// Verify response structure
-		assertThat( results.containsKey( "HEADERS" ) ).isTrue();
-		assertThat( results.containsKey( "BODY" ) ).isTrue();
+		assertThat( res.getStatusCode() ).isEqualTo( 200 );
+		assertThat( res.getBody() ).contains( "Hola" );
 	}
 
 	@Test
-	@DisplayName( "Test with empty event" )
-	public void testEmptyEvent() {
-		var	event	= new HashMap<String, Object>();
+	@DisplayName( "Test with empty request body" )
+	public void testEmptyBody() throws IOException {
+		MockHttpRequest	req	= new MockHttpRequest( "GET", "/" );
+		MockHttpResponse res = new MockHttpResponse();
 
-		var	results	= runner.handleRequest( event, context );
+		runner.service( req, res );
 
-		assertThat( results ).isNotNull();
-		assertThat( results.get( "STATUSCODE" ) ).isEqualTo( 200 );
+		assertThat( res.getStatusCode() ).isEqualTo( 200 );
 	}
 
 	@Test
-	@DisplayName( "Test with complex nested data" )
-	public void testComplexEvent() {
-		var	event		= new HashMap<String, Object>();
-		var	userData	= Map.of(
-		    "id", 123,
-		    "profile", Map.of(
-		        "name", "John Doe",
-		        "preferences", List.of( "java", "boxlang", "aws" )
-		    )
-		);
-		event.put( "user", userData );
-		event.put( "action", "profile_update" );
+	@DisplayName( "Test Content-Type header is set in response" )
+	public void testDefaultContentTypeHeader() throws IOException {
+		MockHttpRequest	req	= new MockHttpRequest( "GET", "/" );
+		MockHttpResponse res = new MockHttpResponse();
 
-		var results = runner.handleRequest( event, context );
+		runner.service( req, res );
 
-		assertThat( results ).isNotNull();
-		assertThat( results.get( "STATUSCODE" ) ).isEqualTo( 200 );
+		assertThat( res.getHeader( "Content-Type" ) ).isNotNull();
 	}
 
 	@Test
-	@DisplayName( "Test performance with large payload" )
-	public void testLargePayload() {
-		var				event		= new HashMap<String, Object>();
+	@DisplayName( "Test with query parameters" )
+	public void testQueryParameters() throws IOException {
+		MockHttpRequest	req	= new MockHttpRequest( "GET", "/" )
+		    .withQueryParam( "action", "greet" )
+		    .withQueryParam( "name", "BoxLang" );
+		MockHttpResponse res = new MockHttpResponse();
 
-		// Create a large string payload
-		StringBuilder	largeData	= new StringBuilder();
+		runner.service( req, res );
+
+		assertThat( res.getStatusCode() ).isEqualTo( 200 );
+	}
+
+	@Test
+	@DisplayName( "Test performance with large request body" )
+	public void testLargePayload() throws IOException {
+		StringBuilder largeData = new StringBuilder();
 		for ( int i = 0; i < 1000; i++ ) {
 			largeData.append( "This is test data line " ).append( i ).append( ". " );
 		}
 
-		event.put( "largeData", largeData.toString() );
-		event.put( "timestamp", System.currentTimeMillis() );
+		MockHttpRequest	req	= new MockHttpRequest( "POST", "/" )
+		    .withContentType( "application/json" )
+		    .withBody( "{\"largeData\":\"" + largeData.toString() + "\"}" );
+		MockHttpResponse res = new MockHttpResponse();
 
-		long	startTime		= System.currentTimeMillis();
-		var		results			= runner.handleRequest( event, context );
-		long	executionTime	= System.currentTimeMillis() - startTime;
+		long startTime		= System.currentTimeMillis();
+		runner.service( req, res );
+		long executionTime	= System.currentTimeMillis() - startTime;
 
-		assertThat( results ).isNotNull();
-		assertThat( results.get( "STATUSCODE" ) ).isEqualTo( 200 );
-
-		// Performance assertion - should complete within reasonable time
-		assertThat( executionTime ).isLessThan( 5000L ); // 5 seconds max
-
+		assertThat( res.getStatusCode() ).isEqualTo( 200 );
+		assertThat( executionTime ).isLessThan( 5000L );
 		System.out.println( "Large payload test completed in " + executionTime + "ms" );
-	}
-
-	@Test
-	@DisplayName( "Test error handling with null values" )
-	public void testNullHandling() {
-		var event = new HashMap<String, Object>();
-		event.put( "data", null );
-		event.put( "nullField", null );
-
-		var results = runner.handleRequest( event, context );
-
-		assertThat( results ).isNotNull();
-		// Should handle null gracefully without throwing exceptions
-		assertThat( results.get( "STATUSCODE" ) ).isEqualTo( 200 );
-	}
-
-	/**
-	 * Create a mock API Gateway event for testing
-	 */
-	private Map<String, Object> createApiGatewayEvent() {
-		Map<String, Object> event = new HashMap<>();
-
-		event.put( "version", "2.0" );
-		event.put( "routeKey", "GET /test" );
-		event.put( "rawPath", "/test" );
-		event.put( "rawQueryString", "param1=value1" );
-
-		Map<String, String> headers = new HashMap<>();
-		headers.put( "accept", "application/json" );
-		headers.put( "user-agent", "test-agent" );
-		event.put( "headers", headers );
-
-		Map<String, String> queryParams = new HashMap<>();
-		queryParams.put( "param1", "value1" );
-		event.put( "queryStringParameters", queryParams );
-
-		Map<String, Object> requestContext = new HashMap<>();
-		requestContext.put( "accountId", "123456789012" );
-		requestContext.put( "apiId", "test123" );
-		requestContext.put( "stage", "test" );
-
-		Map<String, Object> http = new HashMap<>();
-		http.put( "method", "GET" );
-		http.put( "path", "/test" );
-		http.put( "protocol", "HTTP/1.1" );
-		requestContext.put( "http", http );
-
-		event.put( "requestContext", requestContext );
-		event.put( "isBase64Encoded", false );
-
-		return event;
 	}
 }

@@ -27,6 +27,15 @@ repositories {
     mavenCentral()
 }
 
+/**
+ * Separate configuration for the GCF Java Function Invoker used only during
+ * local development. Keeping it isolated means the invoker JAR is never
+ * mixed into the compile, test, or shadow-JAR classpaths.
+ */
+configurations {
+    invoker
+}
+
 dependencies {
 	// Includes BoxLang + SLF4J + GCF
 	implementation 'io.boxlang:boxlang-google-functions:' + boxlangVersion
@@ -36,6 +45,9 @@ dependencies {
 		// Exclude to avoid conflicts with BoxLang's SLF4J binding
 		exclude group: 'org.slf4j', module: 'slf4j-api'
 	}
+	// GCF Java Function Invoker — local dev server only, not on any compile/test/runtime path
+	invoker 'com.google.cloud.functions.invoker:java-function-invoker:2.0.0'
+
 	// Jackson for JSON parsing in local testing
 	testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.17.+'
 
@@ -109,6 +121,53 @@ task buildLambdaZip( type: Zip ) {
 	}
 }
 shadowJar.finalizedBy( buildLambdaZip )
+
+/**
+ * Run the Google Cloud Function locally using the official GCF Java Function
+ * Invoker. The invoker starts an HTTP server on the configured port and routes
+ * every request through FunctionRunner.
+ *
+ * Usage:
+ *   ./gradlew runFunction                    # use defaults from gradle.properties
+ *   ./gradlew runFunction -PtestPort=9090    # custom port
+ *   ./gradlew runFunction -PdebugMode=true   # enable BoxLang verbose logging
+ *   ./gradlew runFunction -PfunctionRoot=... # custom .bx root directory
+ */
+task runFunction( type: JavaExec, dependsOn: shadowJar ) {
+    group = "application"
+    description = "Run FunctionRunner locally via the GCF Java Function Invoker"
+
+    // Only the invoker JAR goes on the JVM classpath; the shadow JAR is
+    // passed to the invoker via --classpath so it is loaded in a child
+    // classloader (matching the actual GCF deployment model).
+    classpath = configurations.invoker
+    mainClass  = "com.google.cloud.functions.invoker.runner.Invoker"
+
+    // Default to src/main/bx where the .bx handlers live.
+    // Override with -PfunctionRoot=<path> to point at a different directory.
+    def bxRoot = ( project.findProperty( 'functionRoot' ) ?: file( 'src/main/bx' ).absolutePath ).toString()
+
+    environment 'BOXLANG_GCP_ROOT',      bxRoot
+    environment 'BOXLANG_GCP_DEBUGMODE', ( project.findProperty( 'debugMode' ) ?: 'false' ).toString()
+
+    // Resolve the shadow JAR path inside doFirst so it runs after shadowJar
+    // has finished writing its output.
+    doFirst {
+        args '--classpath', shadowJar.outputs.files.asPath,
+             '--target',    'ortus.boxlang.runtime.gcp.FunctionRunner',
+             '--port',      ( project.findProperty( 'testPort' ) ?: '9099' ).toString()
+
+        println ""
+        println "================================================================"
+        println " BoxLang GCF Function Invoker"
+        println " Listening on  : http://localhost:${project.findProperty( 'testPort' ) ?: '9099'}"
+        println " Function root : ${bxRoot}"
+        println " Debug mode    : ${project.findProperty( 'debugMode' ) ?: 'false'}"
+        println " Press Ctrl+C to stop."
+        println "================================================================"
+        println ""
+    }
+}
 
 /**
  * Task to download the latest jar from https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-1.0.0.jar

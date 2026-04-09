@@ -7,7 +7,7 @@
  * <h2>Arguments</h2>
  *
  * - event: The event struct/map that triggered the Lambda
- * - context: The AWS Lambda context object that adheres to the <code>com.amazonaws.services.lambda.runtime.Context</code>
+ * - context: The context struct/map of the Google function
  * - response: The response object that will be returned to the caller which always has a standard structure:
  *  - statusCode: The HTTP status code, 200 default
  *  - headers: The HTTP headers map/struct

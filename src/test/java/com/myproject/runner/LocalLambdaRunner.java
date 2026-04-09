@@ -21,90 +21,74 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.myproject.mocks.TestContext;
+import com.myproject.mocks.MockHttpRequest;
+import com.myproject.mocks.MockHttpResponse;
 
-import ortus.boxlang.runtime.aws.LambdaRunner;
+import ortus.boxlang.runtime.gcp.FunctionRunner;
 
 /**
- * Local Lambda Test Runner
+ * Local GCF Function Runner
  *
- * Run your BoxLang Lambda locally with different event payloads
- * Usage:
- * gradle runLocal
- * gradle runLocal -PeventFile=workbench/sampleEvents/api.json
+ * Run your BoxLang GCF function locally without the full GCF invoker.
+ * Useful for quick smoke tests straight from the IDE.
+ *
+ * For a full HTTP server experience use:
+ *   ./gradlew runFunction
+ *
+ * System properties (all optional):
+ *   -DeventFile=workbench/sampleRequests/event-local.json  (request body JSON)
+ *   -Dmethod=POST                                           (HTTP method, default POST)
+ *   -Dpath=/                                               (URI path, default /)
  */
 public class LocalLambdaRunner {
 
-	private static final ObjectMapper objectMapper = new ObjectMapper();
-
 	public static void main( String[] args ) {
 		try {
-			// Get event file from system property or use default
-			String eventFile = System.getProperty( "eventFile", "workbench/sampleEvents/event-local.json" );
+			String requestFile	= System.getProperty( "eventFile", "workbench/sampleRequests/event-local.json" );
+			String method		= System.getProperty( "method", "POST" );
+			String path			= System.getProperty( "path", "/" );
 
-			System.out.println( "🚀 BoxLang Lambda Local Runner" );
-			System.out.println( "📄 Loading event from: " + eventFile );
+			System.out.println( "BoxLang GCF Local Runner" );
+			System.out.println( "Loading request body from: " + requestFile );
 
-			// Load event data
-			Map<String, Object>	event		= loadEventFromFile( eventFile );
+			String body = loadBodyFromFile( requestFile );
 
-			// Create Lambda runner
-			Path				lambdaPath	= Paths.get( "src", "main", "bx", "Lambda.bx" );
-			LambdaRunner		runner		= new LambdaRunner( lambdaPath, true );
+			MockHttpRequest req = new MockHttpRequest( method, path )
+			    .withContentType( "application/json" )
+			    .withBody( body );
+			MockHttpResponse res = new MockHttpResponse();
 
-			// Create mock context
-			TestContext			context		= new TestContext();
+			Path			functionPath	= Paths.get( "src", "main", "bx", "Lambda.bx" );
+			FunctionRunner	runner			= new FunctionRunner( functionPath, true );
 
-			System.out.println( "⚡ Executing Lambda..." );
-			long	startTime		= System.currentTimeMillis();
+			System.out.println( "Executing GCF function..." );
+			long startTime = System.currentTimeMillis();
 
-			// Execute the Lambda
-			var		response		= runner.handleRequest( event, context );
+			runner.service( req, res );
 
-			long	executionTime	= System.currentTimeMillis() - startTime;
+			long executionTime = System.currentTimeMillis() - startTime;
 
-			// Print results
-			System.out.println( "✅ Lambda execution completed in " + executionTime + "ms" );
-			System.out.println( "📊 Response:" );
-			System.out.println( objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString( response ) );
+			System.out.println( "Completed in " + executionTime + "ms" );
+			System.out.println( "Status Code : " + res.getStatusCode() );
+			System.out.println( "Content-Type: " + res.getHeader( "Content-Type" ) );
+			System.out.println( "Body:" );
+			System.out.println( res.getBody() );
 
-			// Force exit to prevent hanging (BoxLang runtime may have background threads)
 			System.exit( 0 );
-
 		} catch ( Exception e ) {
-			System.err.println( "❌ Error running Lambda locally:" );
+			System.err.println( "Error running GCF function locally:" );
 			e.printStackTrace();
 			System.exit( 1 );
 		}
 	}
 
-	/**
-	 * Load the event data from a JSON file.
-	 *
-	 * @param eventFile The path to the event file.
-	 *
-	 * @return The event data as a Map.
-	 *
-	 * @throws IOException If an error occurs while reading the file.
-	 */
-	private static Map<String, Object> loadEventFromFile( String eventFile ) throws IOException {
-		Path eventPath = Paths.get( eventFile );
-
-		if ( !Files.exists( eventPath ) ) {
-			System.err.println( "❌ Event file not found: " + eventFile );
-			System.out.println( "💡 Available sample events:" );
-			System.out.println( "   - workbench/sampleEvents/event-local.json (default Lambda event)" );
-			System.out.println( "   - workbench/sampleEvents/api.json (API Gateway event)" );
-			System.out.println( "   - workbench/sampleEvents/event.json (Legacy API Gateway)" );
-			System.exit( 1 );
+	private static String loadBodyFromFile( String requestFile ) throws IOException {
+		Path filePath = Paths.get( requestFile );
+		if ( !Files.exists( filePath ) ) {
+			System.out.println( "Request file not found: " + requestFile + " — using empty body" );
+			return "{}";
 		}
-
-		String eventJson = Files.readString( eventPath );
-		return objectMapper.readValue( eventJson, new TypeReference<Map<String, Object>>() {
-		} );
+		return Files.readString( filePath );
 	}
 }

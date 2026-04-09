@@ -1,16 +1,16 @@
 /**
  * Application.bx
  *
- * Bootstrap and initialization for the bx-aws-lambda-template application.
+ * Bootstrap and initialization for the Google Cloud Function template application.
  *
  * Responsibilities:
- * - Initialize application configuration and environment for AWS Lambda execution.
+ * - Initialize application configuration and environment for Google Cloud Function execution.
  * - Register modules, services and dependency bindings required by the runtime.
  * - Configure logging, error handling and any necessary middleware or filters.
- * - Prepare Lambda-specific behavior (cold-start optimizations, warm-up handlers).
+ * - Prepare Google Cloud Function-specific behavior (cold-start optimizations, warm-up handlers).
  *
  * Usage:
- * - Invoked during Lambda startup (cold start) or as part of the Lambda handler setup.
+ * - Invoked during Google Cloud Function startup (cold start) or as part of the function handler setup.
  * - Implementations should be idempotent and fast to minimize cold-start latency.
  *
  * Return value:
@@ -21,30 +21,30 @@
  *
  * Implementation notes:
  * - Keep heavy or blocking work out of startup when possible; defer to on-demand handlers.
- * - Ensure proper error logging to aid debugging in the Lambda environment.
+ * - Ensure proper error logging to aid debugging in the Google Cloud Function environment.
  * - Extend registration points to add modules, configuration sources, or lifecycle hooks.
  */
 class{
 
 	// The unique name of the application, used in logs, threads, etc.
-	this.name = "My-AWS-Lambda"
+	this.name = "My-Google-Cloud-Function"
 
 	/**
-	 * Called when the Lambda starts up for the first time, the cold start, careful with what you put here.
+	 * Called when the Google Cloud Function starts up for the first time, the cold start, careful with what you put here.
 	 */
 	public boolean function onApplicationStart() {
         return true;
     }
 
 	/**
-	 * Called when the Lambda shuts down.
+	 * Called when the Google Cloud Function shuts down.
 	 */
     public void function onApplicationEnd( struct applicationScope={} ) {
         return;
     }
 
 	/**
-	 * Called when a new lambda request is received.
+	 * Called when a new Google Cloud Function request is received.
 	 * The target page is the actual Boxlang class to execute: Lambda.bx
 	 */
 	public boolean function onRequestStart( required string targetPage ) {
@@ -52,9 +52,9 @@ class{
     }
 
 	/**
-	 * This is like an AOP around wrapper for your Lambda.
-	 * It receives the lambda target: Lambda.bx or Services.bx
-	 * You can do here before and after advices and then include your lambda for execution.
+	 * This is like an AOP around wrapper for your Google Cloud Function.
+	 * It receives the function target: Lambda.bx or Services.bx
+	 * You can do here before and after advices and then include your function for execution.
 	 */
     public void function onRequest( required string targetPage ) {
         include arguments.targetPage;
@@ -62,28 +62,28 @@ class{
     }
 
 	/**
-	 * Called when the Lambda request ends.
+	 * Called when the Google Cloud Function request ends.
 	 */
     public void function onRequestEnd() {
         return;
     }
 
 	/**
-	 * Called when the Lambda request is aborted via an abort call in your code
+	 * Called when the Google Cloud Function request is aborted via an abort call in your code
 	 */
     public void function onAbort( required string targetPage ) {
         return;
     }
 
 	/**
-	 * Global error handler for the Lambda application.
+	 * Global error handler for the Google Cloud Function application.
 	 */
     public void function onError( required any exception, required string eventName ) {
         return;
     }
 
 	/**
-	 * Global missing template handler for the Lambda application.
+	 * Global missing template handler for the Google Cloud Function application.
 	 */
     public boolean function onMissingTemplate( required string targetPage ) {
         return true;

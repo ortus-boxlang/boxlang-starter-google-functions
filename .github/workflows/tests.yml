@@ -1,0 +1,61 @@
+name: Lambda Tests
+
+# We are a reusable Workflow only
+on:
+  workflow_call:
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: false
+
+env:
+    JDK_VERSION: 21
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: "ubuntu-latest"
+    continue-on-error: false
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: ${{ env.JDK_VERSION }}
+
+      - name: Setup CommandBox
+        uses: Ortus-Solutions/setup-commandbox@v2.0.1
+
+      - name: Install BoxLang Modules
+        run: |
+          box install
+
+      - name: Test Lambda
+        run: |
+          ./gradlew test --stacktrace --console=plain
+
+      - name: Publish Test Reports
+        uses: mikepenz/action-junit-report@v5.6.2
+        if: always()
+        with:
+          report_paths: |
+            **/build/test-results/test/*.xml
+            **/surefire-reports/*.xml
+            **/failsafe-reports/*.xml
+          check_name: "JUnit Report"
+          include_passed: false
+          fail_on_failure: true
+          detailed_summary: true
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests-${{ env.JDK_VERSION }}
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**

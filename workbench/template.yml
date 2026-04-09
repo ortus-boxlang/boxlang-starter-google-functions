@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: BoxLang AWS Lambda Template
+
+Parameters:
+  LambdaMemorySize:
+    Type: Number
+    Default: 128
+    Description: Memory allocated to the Lambda function (MB)
+    MinValue: 128
+    MaxValue: 10240
+
+  LambdaTimeout:
+    Type: Number
+    Default: 15
+    Description: Lambda function timeout (seconds)
+    MinValue: 1
+    MaxValue: 900
+
+  Environment:
+    Type: String
+    Default: "dev"
+    Description: Deployment environment (dev, staging, prod)
+
+Resources:
+  bxFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../build/distributions/boxlang-aws-project-1.0.0.zip
+      Handler: ortus.boxlang.runtime.aws.LambdaRunner::handleRequest
+      Timeout: !Ref LambdaTimeout
+      Runtime: java21
+      MemorySize: !Ref LambdaMemorySize
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          BOXLANG_DEBUG: "false"
+
+Outputs:
+  FunctionName:
+    Description: "BoxLang Lambda Function Name"
+    Value: !Ref bxFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-FunctionName"
+
+  FunctionArn:
+    Description: "BoxLang Lambda Function ARN"
+    Value: !GetAtt bxFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-FunctionArn"

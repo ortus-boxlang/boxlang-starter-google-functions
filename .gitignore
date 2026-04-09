@@ -1,0 +1,22 @@
+.gradle
+build/**
+!gradle/wrapper/gradle-wrapper.jar
+bin/**
+
+### IntelliJ IDEA ###
+.idea/
+
+### Mac OS ###
+.DS_Store
+
+### BOXLANG + Java Dependencies ###
+src/resources/libs/**
+src/resources/boxlang_modules/**
+
+### AWS Deployment Artifacts ###
+workbench/bucket-name.txt
+workbench/out.yml
+workbench/config.local.env
+
+### SAM Local Server ###
+build/sam-logs/

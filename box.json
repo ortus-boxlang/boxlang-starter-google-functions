@@ -1,0 +1,33 @@
+{
+	"name": "MyLambdaProject",
+	"author": "You",
+	"homepage": "https://github.com/ortus-boxlang/mylambda-project",
+	"documentation": "https://github.com/ortus-boxlang/mylambda-project",
+	"repository": {
+		"type": "git",
+		"URL": "https://github.com/ortus-boxlang/mylambda-project"
+	},
+	"bugs": "https://github.com/ortus-boxlang/mylambda-project/issues",
+	"shortDescription": "Module template for BoxLang Lambda Projects",
+	"type": "projects",
+	"keywords": [
+		"boxlang",
+		"aws lambda"
+	],
+	"private": false,
+	"devDependencies": {
+		"commandbox-cfformat": "*",
+		"commandbox-boxlang": "*",
+		"testbox": "*"
+	},
+	"ignore": [
+		"**/.*",
+		"settings.gradle",
+		"gradlew.bat",
+		"gradlew",
+		"build.gradle",
+		"/src/**",
+		"gradle/**"
+	],
+	"scripts": {}
+}

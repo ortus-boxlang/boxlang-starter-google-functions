@@ -1,0 +1,157 @@
+# This workflow is used to build releases
+# It can also be called by other workflows to reuse the release flow.
+name: Release
+
+on:
+  # If you push to main this will trigger a stable release
+  push:
+    branches:
+      - master
+      - main
+
+  # Reusable workflow : Usually called by a `snapshot` workflow
+  workflow_call:
+    inputs:
+      snapshot:
+        description: "Is this a snapshot build?"
+        required: false
+        default: false
+        type: boolean
+
+  # Manual dispatch
+  workflow_dispatch:
+
+env:
+  SNAPSHOT: ${{ inputs.snapshot || false }}
+  JDK_VERSION: 21
+  BUILD_ID: ${{ github.run_number }}
+
+jobs:
+  #############################################
+  # Build Snapshot or Final Release
+  #############################################
+  build:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup CommandBox
+        uses: Ortus-Solutions/setup-commandbox@v2.0.1
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: ${{ env.JDK_VERSION }}
+
+      - name: Setup Environment Variables For Build Process
+        id: current_version
+        run: |
+          # Read name and version of the project
+          PROJECT_NAME=$(grep '^rootProject.name=' settings.gradle | cut -d'=' -f2 | tr -d "'\"")
+          echo "PROJECT_NAME=$PROJECT_NAME" >> $GITHUB_ENV
+
+          TMPVERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
+          echo "VERSION=$TMPVERSION" >> $GITHUB_ENV
+
+          # Branch Detection
+          echo "Github Ref is $GITHUB_REF"
+          echo "BRANCH=main" >> $GITHUB_ENV
+          echo "DEPLOY_TIER=production" >> $GITHUB_ENV
+
+          # Snapshot Detection
+          if [ $GITHUB_REF == 'refs/heads/development' ]
+          then
+            echo "BRANCH=development" >> $GITHUB_ENV
+            echo "DEPLOY_TIER=staging" >> $GITHUB_ENV
+          fi
+
+      - name: Update changelog [unreleased] with latest version
+        uses: thomaseizinger/keep-a-changelog-new-release@3.1.0
+        if: env.SNAPSHOT == 'false'
+        with:
+          changelogPath: ./changelog.md
+          tag: v${{ env.VERSION }}
+
+      - name: Build v${{ env.VERSION }}
+        run: |
+          npm install -g markdownlint-cli
+          markdownlint changelog.md --fix
+          box install --production
+          ./gradlew build -x test --stacktrace --console=plain
+
+      - name: Commit Changelog [unreleased] with latest version
+        uses: EndBug/add-and-commit@v9.1.4
+        if: env.SNAPSHOT == 'false'
+        with:
+          author_name: Github Actions
+          author_email: info@ortussolutions.com
+          message: "Finalized changelog for v${{ env.VERSION }}"
+          add: changelog.md
+
+      - name: Tag Version
+        uses: rickstaa/action-create-tag@v1.7.2
+        if: env.SNAPSHOT == 'false'
+        with:
+          tag: "v${{ env.VERSION }}"
+          force_push_tag: true
+          message: "Latest Release v${{ env.VERSION }}"
+
+      - name: Upload Build Artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boxlang-build
+          path: |
+            build/reports/tests/**
+            changelog.md
+
+      # - name: Update AWS Lambda Function
+      #   uses: kazimanzurrashid/aws-lambda-update-action@v2.0.3
+      #   with:
+      #     zip-file: "./build/distributions/${{ env.PROJECT_NAME }}-${{ env.VERSION }}.zip"
+      #     lambda-name: ${{ env.PROJECT_NAME }}-${{ env.DEPLOY_TIER }}
+      #   env:
+      #     AWS_REGION: ${{ secrets.AWS_REGION }}
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PUBLISHER_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_PUBLISHER_KEY }}
+
+      # - name: Upload Distributions to S3
+      #   uses: jakejarvis/s3-sync-action@master
+      #   with:
+      #     args: --acl public-read
+      #   env:
+      #     AWS_S3_BUCKET: "your.bucket.name"
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_SECRET }}
+      #     SOURCE_DIR: "build/distributions"
+      #     DEST_DIR: "${{ env.PROJECT_NAME }}/${{ env.VERSION }}"
+
+      # - name: Create Github Release
+      #   uses: taiki-e/create-gh-release-action@v1.8.0
+      #   continue-on-error: true
+      #   if: env.SNAPSHOT == 'false'
+      #   id: create_release
+      #   with:
+      #     title: ${{ env.VERSION }}
+      #     changelog: changelog.md
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     ref: refs/tags/v${{ env.VERSION }}
+
+      # - name: Inform Slack
+      #   if: ${{ always() }}
+      #   uses: rtCamp/action-slack-notify@v2
+      #   env:
+      #     SLACK_CHANNEL: coding
+      #     SLACK_COLOR: ${{ job.status }} # or a specific color like 'green' or '#ff00ff'
+      #     SLACK_ICON_EMOJI: ":bell:"
+      #     SLACK_MESSAGE: "Module ${{ env.PROJECT_NAME }} v${{ env.VERSION }} Built with ${{ job.status }}!"
+      #     SLACK_TITLE: "BoxLang Module ${{ env.PROJECT_NAME }}"
+      #     SLACK_USERNAME: CI
+      #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -1,0 +1,32 @@
+/**
+ * My BoxLang Lambda
+ *
+ * - The <code>run()</code> function is by convention the entry point of the Lambda
+ * - You can create other functions and use the `x-bx-function` header to call them
+ *
+ * <h2>Arguments</h2>
+ *
+ * - event: The event struct/map that triggered the Lambda
+ * - context: The AWS Lambda context object that adheres to the <code>com.amazonaws.services.lambda.runtime.Context</code>
+ * - response: The response object that will be returned to the caller which always has a standard structure:
+ *  - statusCode: The HTTP status code, 200 default
+ *  - headers: The HTTP headers map/struct
+ *  - body: The response body, or empty. This is for you to add your response data as you see fit.
+ *  - cookies: An array of incoming cookies (if any)
+ *  - Any other property you add will be returned as well
+ */
+class{
+
+	function run( event, context, response ){
+		response.body = {
+			"error": false,
+			"messages": [],
+			"data": "====> Incoming event " & event.toString()
+		}
+		response.statusCode = 200
+	}
+
+	function anotherLambda( event, context, response ){
+		return "Hola!!"
+	}
+}

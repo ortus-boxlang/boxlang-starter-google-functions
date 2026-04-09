@@ -28,8 +28,8 @@ repositories {
 }
 
 dependencies {
-	// Includes BoxLang + SLF4J + AWS Lambda Core
-	implementation 'io.boxlang:boxlang-aws-lambda:' + boxlangVersion
+	// Includes BoxLang + SLF4J + GCF
+	implementation 'io.boxlang:boxlang-google-functions:' + boxlangVersion
 
     // Use only one SLF4J implementation to avoid warnings
 	testImplementation( 'org.slf4j:slf4j-nop:2.0.17' ) {
@@ -72,7 +72,7 @@ test {
 jar {
     archiveVersion =  "${version}"
  	manifest {
-	   attributes 'Description': 'My BoxLang AWS Lambda Runtime'
+	   attributes 'Description': 'My BoxLang Google Cloud Function Runtime'
     }
 }
 shadowJar {
@@ -122,7 +122,7 @@ task downloadBoxLang( type: Download ) {
 	}
 
     // Configure the URL of the file to download
-	src "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-aws-lambda/${boxlangVersion}/boxlang-aws-lambda-${boxlangVersion}.jar"
+	src "https://s3.amazonaws.com/downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-google-functions/${boxlangVersion}/boxlang-aws-lambda-${boxlangVersion}.jar"
 
 	// Specify the destination directory for the downloaded file
     dest "src/resources/libs/boxlang-aws-lambda-${boxlangVersion}.jar"
@@ -184,191 +184,5 @@ task bumpMinorVersion {
 task bumpPatchVersion {
 	doLast{
 		bumpVersion( false, false, true )
-	}
-}
-
-/**
- * Run Lambda locally with default event used for integration testing
- * worbench/sampleEvents/event-local.json
- */
-task runLocal( type: JavaExec ) {
-	dependsOn compileTestJava
-	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.myproject.runner.LocalLambdaRunner'
-
-	// Set default event file
-	systemProperty 'eventFile', project.findProperty('eventFile') ?: 'workbench/sampleEvents/event-local.json'
-
-	// Force JVM exit after execution to prevent hanging
-	systemProperty 'java.awt.headless', 'true'
-	jvmArgs = ['-Djava.awt.headless=true']
-
-	doFirst {
-		println "🚀 Running BoxLang Lambda locally..."
-		if (project.hasProperty('eventFile')) {
-			println "📄 Using event file: ${project.getProperty('eventFile')}"
-		}
-	}
-}
-
-/**
- * Run Lambda locally with API Gateway event
- */
-task runLocalApi( type: JavaExec ) {
-	dependsOn compileTestJava
-	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.myproject.runner.LocalLambdaRunner'
-	systemProperty 'eventFile', 'workbench/sampleEvents/api.json'
-
-	// Force JVM exit after execution to prevent hanging
-	systemProperty 'java.awt.headless', 'true'
-	jvmArgs = ['-Djava.awt.headless=true']
-
-	doFirst {
-		println "🚀 Running BoxLang Lambda locally with API Gateway event..."
-	}
-}
-
-/**
- * Run Lambda locally with legacy API Gateway event
- */
-task runLocalLegacy( type: JavaExec ) {
-	dependsOn compileTestJava
-	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.myproject.runner.LocalLambdaRunner'
-	systemProperty 'eventFile', 'workbench/sampleEvents/event.json'
-
-	// Force JVM exit after execution to prevent hanging
-	systemProperty 'java.awt.headless', 'true'
-	jvmArgs = ['-Djava.awt.headless=true']
-
-	doFirst {
-		println "🚀 Running BoxLang Lambda locally with Legacy API Gateway event..."
-	}
-}
-
-/**
- * Start SAM local API server for HTTP endpoint testing
- */
-task startSamServer( type: Exec ) {
-	dependsOn build
-
-	// Check if SAM CLI is available
-	doFirst {
-		try {
-			exec {
-				commandLine 'sam', '--version'
-				standardOutput = new ByteArrayOutputStream()
-				errorOutput = new ByteArrayOutputStream()
-			}
-		} catch (Exception e) {
-			throw new GradleException("""
-❌ SAM CLI not found! Please install it first:
-
-🍺 macOS (Homebrew):
-   brew install aws-sam-cli
-
-🐧 Linux:
-   pip install aws-sam-cli
-
-🪟 Windows:
-   Download from: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html
-
-ℹ️  Alternative: Use ./gradlew runLocal for non-HTTP testing
-			""".stripIndent())
-		}
-
-		println "🌐 Starting SAM local API server..."
-		println "📍 Your Lambda will be available at: http://localhost:3000"
-		println "🔄 Building project first..."
-	}
-
-	workingDir 'workbench'
-	commandLine 'sam', 'local', 'start-api',
-		'--template', 'template-local.yml',
-		'--port', '3000',
-		'--host', '0.0.0.0'
-
-	// Show helpful output
-	doLast {
-		println ""
-		println "✅ SAM server should now be running!"
-		println "🧪 Test your endpoints with:"
-		println "   curl http://localhost:3000"
-		println "   curl -X POST http://localhost:3000 -d '{\"test\":\"data\"}' -H 'Content-Type: application/json'"
-	}
-}
-
-/**
- * Start SAM local API server in background (daemon mode)
- */
-task startSamServerBackground( type: Exec ) {
-	dependsOn build
-
-	doFirst {
-		// Check if server is already running
-		try {
-			def response = new URL("http://localhost:3000").getText()
-			println "⚠️  Server already running at http://localhost:3000"
-			println "🛑 Stop it first with: ./gradlew stopSamServer"
-			throw new GradleException("SAM server already running")
-		} catch (ConnectException e) {
-			// Good, port is available
-			println "🌐 Starting SAM local API server in background..."
-		}
-
-		// Create logs directory
-		file('build/sam-logs').mkdirs()
-	}
-
-	workingDir 'workbench'
-	commandLine 'bash', '-c', '''
-		nohup sam local start-api \
-			--template template-local.yml \
-			--port 3000 \
-			--host 0.0.0.0 \
-			> ../build/sam-logs/sam-server.log 2>&1 &
-		echo $! > ../build/sam-logs/sam-server.pid
-	'''
-
-	doLast {
-		// Wait a moment and check if server started
-		Thread.sleep(3000)
-		try {
-			new URL("http://localhost:3000").getText()
-			println "✅ SAM server started in background!"
-			println "📍 Available at: http://localhost:3000"
-			println "📄 Logs: build/sam-logs/sam-server.log"
-			println "🛑 Stop with: ./gradlew stopSamServer"
-		} catch (Exception e) {
-			println "⚠️  Server may still be starting... check build/sam-logs/sam-server.log"
-		}
-	}
-}
-
-/**
- * Stop the background SAM server
- */
-task stopSamServer {
-	doLast {
-		def pidFile = file('build/sam-logs/sam-server.pid')
-		if (pidFile.exists()) {
-			def pid = pidFile.text.trim()
-			println "🛑 Stopping SAM server (PID: $pid)..."
-
-			try {
-				exec {
-					commandLine 'kill', pid
-				}
-				pidFile.delete()
-				println "✅ SAM server stopped"
-			} catch (Exception e) {
-				println "⚠️  Could not stop server (may already be stopped)"
-				println "🔍 Check manually: ps aux | grep sam"
-			}
-		} else {
-			println "ℹ️  No SAM server PID file found"
-			println "🔍 Check if server is running: curl http://localhost:3000"
-		}
 	}
 }

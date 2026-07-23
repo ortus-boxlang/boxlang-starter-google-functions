@@ -46,7 +46,7 @@ dependencies {
 		exclude group: 'org.slf4j', module: 'slf4j-api'
 	}
 	// GCF Java Function Invoker — local dev server only, not on any compile/test/runtime path
-	invoker 'com.google.cloud.functions.invoker:java-function-invoker:2.0.0'
+	invoker 'com.google.cloud.functions.invoker:java-function-invoker:2.0.1'
 
 	// GCF API — needed for MockHttpRequest/MockHttpResponse to compile against the interfaces
 	testImplementation 'com.google.cloud.functions:functions-framework-api:2.0.0'

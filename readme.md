@@ -1,8 +1,26 @@
-# BoxLang Starter for Google Cloud Functions
+# ⚡︎ BoxLang Google Cloud Functions Starter Template
 
-Production-ready starter template for building and deploying BoxLang handlers on Google Cloud Functions (Gen 2, Java 21).
+```
+|:------------------------------------------------------:|
+| ⚡︎ B o x L a n g ⚡︎
+| Dynamic : Modular : Productive
+|:------------------------------------------------------:|
+```
 
-This project uses the BoxLang Google Functions runtime and gives you a thin Java/Gradle wrapper so your app logic stays in BoxLang files under `src/main/bx`.
+<blockquote>
+	Copyright Since 2023 by Ortus Solutions, Corp
+	<br>
+	<a href="https://www.boxlang.io">www.boxlang.io</a> |
+	<a href="https://www.ortussolutions.com">www.ortussolutions.com</a>
+</blockquote>
+
+<p>&nbsp;</p>
+
+## 🚀 Welcome
+
+Production-ready starter template for building and deploying BoxLang handlers on Google Cloud Functions (Gen 2, Java 21), using the [BoxLang Google Functions runtime](https://github.com/ortus-boxlang/boxlang-google-functions). It gives you a thin Java/Gradle wrapper so your app logic stays in BoxLang files under `src/main/bx`.
+
+> 💡 This template is intentionally structured the same way as our [AWS Lambda](https://github.com/ortus-boxlang/boxlang-starter-aws-lambda) and [Azure Functions](https://github.com/ortus-boxlang/boxlang-starter-azure-functions) starter templates. Your `.bx` handler code can move between all three providers unmodified - only the deployment step differs.
 
 ## What This Starter Includes
 
@@ -217,7 +235,7 @@ If you changed `version` in `gradle.properties`, update the ZIP filename in `--s
 
 Key `gradle.properties` values:
 
-- `boxlangVersion=1.12.0`
+- `boxlangVersion` - see `gradle.properties` for the current pinned version
 - `jdkVersion=21`
 - `testPort=9099`
 - `debugMode=true`
@@ -276,3 +294,39 @@ Test report:
 2. Add route-specific handlers under `src/main/bx/handlers/` (for example, `Customers.bx`, `Products.bx`).
 3. Deploy to GCF with the command above.
 4. Add CI/CD pipeline automation once your deployment flow is validated.
+
+## 📚 Additional Resources
+
+- **BoxLang Google Functions Runtime** - [boxlang-google-functions](https://github.com/ortus-boxlang/boxlang-google-functions)
+- **BoxLang Documentation** - [boxlang.ortusbooks.com](https://boxlang.ortusbooks.com)
+- **AWS Lambda Starter** - [boxlang-starter-aws-lambda](https://github.com/ortus-boxlang/boxlang-starter-aws-lambda)
+- **Azure Functions Starter** - [boxlang-starter-azure-functions](https://github.com/ortus-boxlang/boxlang-starter-azure-functions)
+
+## License
+
+Apache License, Version 2.0.
+
+## Open-Source & Professional Support
+
+This project is a professional open source project and is available as FREE and open source to use.  Ortus Solutions, Corp provides commercial support, training and commercial subscriptions which include the following:
+
+- Professional Support and Priority Queuing
+- Remote Assistance and Troubleshooting
+- New Feature Requests and Custom Development
+- Custom SLAs
+- Application Modernization and Migration Services
+- Performance Audits
+- Enterprise Modules and Integrations
+- Much More
+
+https://www.boxlang.io/plans
+
+<p>&nbsp;</p>
+
+<blockquote>
+"We ❤️ Open Source and BoxLang" - Luis Majano
+</blockquote>
+
+### THE DAILY BREAD
+
+> "I am the way, and the truth, and the life; no one comes to the Father, but by me (JESUS)" Jn 14:1-12

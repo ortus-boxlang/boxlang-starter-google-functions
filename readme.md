@@ -116,6 +116,24 @@ class {
 }
 ```
 
+`run()`, `onRequestEnd` and `onError` all receive the same `response` struct as their last argument. A returned value is stored in `response.body` before `onRequestEnd` runs, so a hook can wrap it, and a handled error defaults to status `500` unless `onError` sets one:
+
+```js
+class {
+
+    function onRequestEnd( target, event, context, response ) {
+        response.body = { ok: true, data: response.body }
+    }
+
+    function onError( exception, eventName, event, context, response ) {
+        response.body = { ok: false, error: exception.message }
+    }
+
+}
+```
+
+If `Application.bx` defines `onError`, the error counts as handled; rethrow from the hook to fail the invocation.
+
 ## 📋 Handler Contract
 
 Every handler - `Lambda.bx` or anything under `handlers/` - implements `run( event, context, response )` (or an alternate method called via the `x-bx-function` header):
